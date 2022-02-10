@@ -127,6 +127,7 @@ class IrAttachment(models.Model):
 
     def _mark_for_gc(self, fname):
         """ Add ``fname`` in a checklist for the filestore garbage collection. """
+        fname = re.sub('[.]', '', fname).strip('/\\')
         # we use a spooldir: add an empty file in the subdirectory 'checklist'
         full_path = os.path.join(self._full_path('checklist'), fname)
         if not os.path.exists(full_path):
@@ -347,10 +348,10 @@ class IrAttachment(models.Model):
             self.env['ir.attachment'].flush(['res_model', 'res_id', 'create_uid', 'public', 'res_field'])
             self._cr.execute('SELECT res_model, res_id, create_uid, public, res_field FROM ir_attachment WHERE id IN %s', [tuple(self.ids)])
             for res_model, res_id, create_uid, public, res_field in self._cr.fetchall():
-                if not self.env.is_system() and res_field:
-                    raise AccessError(_("Sorry, you are not allowed to access this document."))
                 if public and mode == 'read':
                     continue
+                if not self.env.is_system() and (res_field or (not res_id and create_uid != self.env.uid)):
+                    raise AccessError(_("Sorry, you are not allowed to access this document."))
                 if not (res_model and res_id):
                     if create_uid != self._uid:
                         require_employee = True
@@ -487,7 +488,7 @@ class IrAttachment(models.Model):
     def write(self, vals):
         self.check('write', values=vals)
         # remove computed field depending of datas
-        for field in ('file_size', 'checksum'):
+        for field in ('file_size', 'checksum', 'store_fname'):
             vals.pop(field, False)
         if 'mimetype' in vals or 'datas' in vals:
             vals = self._check_contents(vals)
@@ -495,6 +496,9 @@ class IrAttachment(models.Model):
 
     def copy(self, default=None):
         self.check('write')
+        if not (default or {}).keys() & {'datas', 'db_datas'}:
+            # ensure the content is kept and recomputes checksum/store_fname
+            default = dict(default or {}, datas=self.datas)
         return super(IrAttachment, self).copy(default)
 
     def unlink(self):
@@ -516,10 +520,16 @@ class IrAttachment(models.Model):
     @api.model_create_multi
     def create(self, vals_list):
         record_tuple_set = set()
+
+        # remove computed field depending of datas
+        vals_list = [{
+            key: value
+            for key, value
+            in vals.items()
+            if key not in ('file_size', 'checksum', 'store_fname')
+        } for vals in vals_list]
+
         for values in vals_list:
-            # remove computed field depending of datas
-            for field in ('file_size', 'checksum'):
-                values.pop(field, False)
             values = self._check_contents(values)
             if 'datas' in values:
                 values.update(self._get_datas_related_values(values.pop('datas'), values['mimetype']))
