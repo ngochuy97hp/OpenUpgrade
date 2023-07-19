@@ -8,5 +8,5 @@ def migrate(env, version):
         env,
         [
             "payment_paypal.payment_method_paypal",
-        ]
+        ],
     )
