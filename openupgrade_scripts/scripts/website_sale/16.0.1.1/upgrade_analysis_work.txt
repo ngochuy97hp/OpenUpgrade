@@ -13,6 +13,8 @@ website_sale / res.company              / website_sale_onboarding_payment_provid
 
 website_sale / sale.order               / shop_warning (char)           : NEW
 website_sale / sale.order.line          / shop_warning (char)           : NEW
+# NOTHING TO DO: set shop_warning = warning_stock at website_sale_stock
+
 website_sale / website                  / account_on_checkout (selection): NEW selection_keys: ['disabled', 'mandatory', 'optional'], hasdefault: default
 website_sale / website                  / add_to_cart_action (selection): NEW selection_keys: ['go_to_cart', 'stay'], hasdefault: default
 website_sale / website                  / cart_add_on_page (boolean)    : DEL
